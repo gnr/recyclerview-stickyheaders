@@ -105,6 +105,10 @@ public class StickyHeadersItemDecoration extends RecyclerView.ItemDecoration {
         adapter.registerAdapterDataObserver(adapterDataObserver);
     }
 
+    public void unregisterAdapterDataObserver(RecyclerView.Adapter adapter) {
+        adapter.unregisterAdapterDataObserver(adapterDataObserver);
+    }
+
     private float getHeaderY(View item, RecyclerView.LayoutManager lm) {
         return  headerStore.isSticky() && lm.getDecoratedTop(item) < 0 ? 0 : lm.getDecoratedTop(item);
     }
