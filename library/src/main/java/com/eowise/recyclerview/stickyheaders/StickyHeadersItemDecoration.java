@@ -3,6 +3,7 @@ package com.eowise.recyclerview.stickyheaders;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.support.v4.view.ViewCompat;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 
@@ -15,6 +16,8 @@ public class StickyHeadersItemDecoration extends RecyclerView.ItemDecoration {
     private final AdapterDataObserver adapterDataObserver;
     private boolean overlay;
     private DrawOrder drawOrder;
+
+    private int mMinimumOffset = 0;
 
     public StickyHeadersItemDecoration(HeaderStore headerStore) {
         this(headerStore, false);
@@ -45,6 +48,10 @@ public class StickyHeadersItemDecoration extends RecyclerView.ItemDecoration {
         }
     }
 
+    public void setMinimumVisibleOffset(int offset) {
+        mMinimumOffset = offset;
+    }
+
     private void drawHeaders(Canvas c, RecyclerView parent, RecyclerView.State state) {
         final int childCount = parent.getChildCount();
         final RecyclerView.LayoutManager lm = parent.getLayoutManager();
@@ -68,8 +75,45 @@ public class StickyHeadersItemDecoration extends RecyclerView.ItemDecoration {
                         int headerHeight = headerStore.getHeaderHeight(holder);
                         float y = getHeaderY(child, lm) + translationY;
 
+                        boolean isOverlapping = false;
                         if (headerStore.isSticky() && lastY != null && lastY < y + headerHeight) {
+                            isOverlapping = true;
                             y = lastY - headerHeight;
+                        }
+
+                        if(headerStore.isSticky() && mMinimumOffset > 0) {
+                            if (lm instanceof LinearLayoutManager) {
+                                LinearLayoutManager llm = (LinearLayoutManager) lm;
+                                int firstVisPos = llm.findFirstVisibleItemPosition();
+
+                                if (holder.getPosition() == firstVisPos) {
+                                    if(isOverlapping) {
+                                        // do nothing
+                                    }
+                                    else {
+                                        if (lastY != null && lastY < y + headerHeight + mMinimumOffset) {
+                                            // reset to be exactly above the item below this one
+                                            y = lastY - headerHeight;
+                                        } else {
+                                            // add the full toolbar offset
+                                            y += mMinimumOffset;
+                                        }
+                                    }
+
+                                } else if (holder.getPosition() == firstVisPos + 1) {
+                                    View nextChild = parent.getChildAt(i - 1);
+                                    RecyclerView.ViewHolder nextHolder = parent.getChildViewHolder(nextChild);
+                                    int nextHeaderHeight = headerStore.getHeaderHeight(nextHolder);
+                                    float nextY = getHeaderY(nextChild, lm);
+                                    if (y < nextY + nextHeaderHeight) {
+                                        // add the full toolbar offset
+                                        y += mMinimumOffset;
+                                    } else if (y < nextY + nextHeaderHeight + mMinimumOffset) {
+                                        // NOTE: while the toolbar offset causes overlap, allow other stuff to scroll and keep this constant
+                                        y = nextY + nextHeaderHeight + mMinimumOffset;
+                                    }
+                                }
+                            }
                         }
 
                         c.save();
